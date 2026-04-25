@@ -27,6 +27,10 @@ Claude and local models are not included in this phase.
 2. Install dependencies:
      - pip install -r requirements.txt
 3. Install and configure arduino-cli.
+    - winget install ArduinoSA.CLI
+    - arduino-cli version
+    - arduino-cli config init
+    - arduino-cli core update-index
 4. Set environment variables for API credentials:
      - OPENAI_API_KEY
      - GOOGLE_API_KEY

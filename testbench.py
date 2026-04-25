@@ -3,7 +3,6 @@ import csv
 import json
 import os
 import re
-import shutil
 import subprocess
 import time
 from dataclasses import dataclass
@@ -106,7 +105,11 @@ def call_openai(api_key: str, model: str, temperature: float, prompt: str, timeo
 
 
 def call_google(api_key: str, model: str, temperature: float, prompt: str, timeout_seconds: int) -> Tuple[str, float]:
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    model_id = model.strip()
+    if model_id.startswith("models/"):
+        model_id = model_id.split("models/", 1)[1]
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": temperature},
