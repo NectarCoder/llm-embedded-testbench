@@ -58,9 +58,9 @@ Table 1 demonstrates our preliminary timeline for the project. We have allocated
 
 We plan to split the work into two roles, and a joint responsibility:
 
-* **Member A (Hardware Architect) Nicholas Hodge:** Lead on physical Arduino hardware-in-the-loop (HIL) setup, and replicating tasks from the original study. Will also lead methodology design for building the solution.
-* **Member B (Systems Engineer) Amrut Ramasamy:** Lead on software infrastructure, including modifying the testbench to support new state-of-the-art models, and local models. Will focus on prompt engineering and defining a number of prompt templates to be evaluated.
-* **Both Members (Documentation & Analysis) Amrut Ramasamy and Nicholas Hodge:** Jointly responsible for data analysis, result interpretation, and documentation of findings in the final paper report and presentation.
+* **Member A (Hardware Architect) (redacted):** Lead on physical Arduino hardware-in-the-loop (HIL) setup, and replicating tasks from the original study. Will also lead methodology design for building the solution.
+* **Member B (Systems Engineer) (redacted):** Lead on software infrastructure, including modifying the testbench to support new state-of-the-art models, and local models. Will focus on prompt engineering and defining a number of prompt templates to be evaluated.
+* **Both Members (Documentation & Analysis) (redacted) and (redacted):** Jointly responsible for data analysis, result interpretation, and documentation of findings in the final paper report and presentation.
 
 ## References
 
