@@ -19,26 +19,34 @@ Hardware upload and runtime validation are intentionally stubbed for the next ph
 - OpenAI API
 - Google Gemini API
 
-Claude and local models are not included in this phase.
-
 ## Setup (venv + pip)
 
 1. Create and activate a virtual environment.
+    - python -m venv .venv
+    - .venv\Scripts\activate (Windows)
+    - source .venv/bin/activate (UNIX)
 2. Install dependencies:
      - pip install -r requirements.txt
-3. Install and configure arduino-cli.
-    - winget install ArduinoSA.CLI
+3. Install arduino-cli.
+    - winget install ArduinoSA.CLI (Windows)
+    - brew install arduino-cli (macOS with Homebrew)
+    - sudo port install arduino-cli (macOS with MacPorts)
+4. Configure arduino-cli:
     - arduino-cli version
     - arduino-cli config init
     - arduino-cli core update-index
-4. Set environment variables for API credentials:
+    - TODO: commands to setup the exact board (see dev-refs/install-and-config-arduino-cli.md)
+5. Set environment variables for API credentials:
      - OPENAI_API_KEY
      - GOOGLE_API_KEY
 
 PowerShell example:
-
 - $env:OPENAI_API_KEY="your_openai_key"
 - $env:GOOGLE_API_KEY="your_google_key"
+
+ZSH/BASH example:
+- export OPENAI_API_KEY="your_openai_key"
+- export GOOGLE_API_KEY="your_google_key"
 
 ## Files
 
@@ -50,6 +58,7 @@ PowerShell example:
 
 llm_prompts.json expects:
 
+```json
 {
     "tasks": [
         {
@@ -59,6 +68,7 @@ llm_prompts.json expects:
         }
     ]
 }
+```
 
 ## Run Configuration Schema
 

@@ -540,8 +540,9 @@ def main() -> None:
 
                         code = extract_code(model_text)
                         previous_code = code
-                        sketch_name = sanitize_name(task_name)
                         sketch_dir = programs_root / run_id / f"iter_{iteration}"
+                        # Arduino CLI compile expects the main .ino filename to match the folder name.
+                        sketch_name = sketch_dir.name
                         sketch_path = write_sketch(sketch_dir, sketch_name, code)
 
                         compile_ok, compile_log, compile_latency = compile_sketch(
