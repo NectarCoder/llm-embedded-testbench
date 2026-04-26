@@ -100,7 +100,7 @@ Each run creates a timestamped directory under runs/ with:
 - programs/: generated sketches by run and iteration
 - compile_logs/: compiler logs and deploy stub metadata
 
-The top-level results.json is updated with paths to the latest run outputs.
+runs/results.json is updated with a full run history (latest first), including ISO and human-readable timestamps and output paths.
 
 ## Next Phase
 

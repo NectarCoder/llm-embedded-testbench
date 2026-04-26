@@ -24,6 +24,14 @@ class ProviderConfig:
     temperature: float
 
 
+class ApiRequestError(RuntimeError):
+    def __init__(self, category: str, message: str, retryable: bool) -> None:
+        super().__init__(message)
+        self.category = category
+        self.message = message
+        self.retryable = retryable
+
+
 def load_json(path: Path) -> dict:
     with path.open("r", encoding="utf-8") as file:
         return json.load(file)
@@ -35,6 +43,107 @@ def ensure_dir(path: Path) -> None:
 
 def sanitize_name(name: str) -> str:
     return re.sub(r"[^a-zA-Z0-9._-]+", "_", name)
+
+
+def sanitize_error_message(message: str) -> str:
+    redacted = re.sub(r"([?&](?:key|api_key)=)[^&\s]+", r"\1<redacted>", message, flags=re.IGNORECASE)
+    redacted = re.sub(r"(Bearer\s+)[A-Za-z0-9._-]+", r"\1<redacted>", redacted)
+    return redacted
+
+
+def parse_openai_http_error(response: requests.Response) -> Tuple[str, str, bool]:
+    status = response.status_code
+    err_type = ""
+    err_code = ""
+    message = ""
+
+    try:
+        payload = response.json()
+        if isinstance(payload, dict):
+            error_obj = payload.get("error", {})
+            if isinstance(error_obj, dict):
+                err_type = str(error_obj.get("type", "")).strip()
+                err_code = str(error_obj.get("code", "")).strip()
+                message = str(error_obj.get("message", "")).strip()
+    except ValueError:
+        pass
+
+    if not message:
+        message = (response.text or f"HTTP {status}").strip()
+
+    detail = sanitize_error_message(message)
+    detail_lower = detail.lower()
+
+    is_quota = (
+        err_code in {"insufficient_quota", "billing_hard_limit_reached"}
+        or "insufficient quota" in detail_lower
+        or "billing hard limit" in detail_lower
+        or "prepaid" in detail_lower
+        or "prepayment" in detail_lower
+    )
+    is_rate_limited = status == 429 and not is_quota
+    retryable = status in {408, 409, 429, 500, 502, 503, 504} and not is_quota
+
+    if is_quota:
+        category = "quota_exhausted"
+    elif is_rate_limited:
+        category = "rate_limited"
+    else:
+        category = "error"
+
+    qualifiers = ", ".join(part for part in [err_type, err_code] if part)
+    prefix = f"OpenAI HTTP {status}"
+    if qualifiers:
+        prefix = f"{prefix} ({qualifiers})"
+
+    return category, f"{prefix}: {detail}", retryable
+
+
+def parse_google_http_error(response: requests.Response) -> Tuple[str, str, bool]:
+    status = response.status_code
+    status_text = ""
+    message = ""
+
+    try:
+        payload = response.json()
+        if isinstance(payload, dict):
+            error_obj = payload.get("error", {})
+            if isinstance(error_obj, dict):
+                status_text = str(error_obj.get("status", "")).strip()
+                message = str(error_obj.get("message", "")).strip()
+    except ValueError:
+        pass
+
+    if not message:
+        message = (response.text or f"HTTP {status}").strip()
+
+    detail = sanitize_error_message(message)
+    detail_lower = detail.lower()
+
+    is_rate_limited = status == 429 and any(
+        marker in detail_lower
+        for marker in ["rate limit", "too many requests", "per minute", "per second", "qps"]
+    )
+    is_quota = (
+        "quota" in detail_lower
+        or "billing" in detail_lower
+        or "prepaid" in detail_lower
+        or "prepayment" in detail_lower
+    ) and not is_rate_limited
+    retryable = status in {408, 409, 429, 500, 502, 503, 504} and not is_quota
+
+    if is_quota:
+        category = "quota_exhausted"
+    elif status == 429:
+        category = "rate_limited"
+    else:
+        category = "error"
+
+    prefix = f"Google HTTP {status}"
+    if status_text:
+        prefix = f"{prefix} ({status_text})"
+
+    return category, f"{prefix}: {detail}", retryable
 
 
 def extract_code(text: str) -> str:
@@ -99,7 +208,9 @@ def call_openai(api_key: str, model: str, temperature: float, prompt: str, timeo
     started = time.time()
     response = requests.post(url, headers=headers, json=payload, timeout=timeout_seconds)
     elapsed = time.time() - started
-    response.raise_for_status()
+    if response.status_code >= 400:
+        category, message, retryable = parse_openai_http_error(response)
+        raise ApiRequestError(category, message, retryable)
     content = response.json()["choices"][0]["message"]["content"]
     return content, elapsed
 
@@ -118,7 +229,9 @@ def call_google(api_key: str, model: str, temperature: float, prompt: str, timeo
     started = time.time()
     response = requests.post(url, json=payload, timeout=timeout_seconds)
     elapsed = time.time() - started
-    response.raise_for_status()
+    if response.status_code >= 400:
+        category, message, retryable = parse_google_http_error(response)
+        raise ApiRequestError(category, message, retryable)
 
     data = response.json()
     candidates = data.get("candidates", [])
@@ -163,10 +276,17 @@ def call_model_with_timeout_retry(
         except requests.Timeout as exc:
             last_error = f"timeout: {exc}"
             if attempt < reset_retry_count:
+                time.sleep(min(2**attempt, 8))
                 continue
             return "", float(request_timeout_seconds), "timeout", last_error
+        except ApiRequestError as exc:
+            last_error = sanitize_error_message(exc.message)
+            if exc.retryable and attempt < reset_retry_count:
+                time.sleep(min(2**attempt, 8))
+                continue
+            return "", 0.0, exc.category, last_error
         except Exception as exc:  # noqa: BLE001
-            last_error = str(exc)
+            last_error = sanitize_error_message(str(exc))
             return "", 0.0, "error", last_error
     return "", 0.0, "error", last_error
 
@@ -225,6 +345,8 @@ def write_summary_csv(summary_csv: Path, rows: List[dict]) -> None:
                 "runs": 0,
                 "compiled_runs": 0,
                 "model_timeout_runs": 0,
+                "model_quota_exhausted_runs": 0,
+                "model_rate_limited_runs": 0,
                 "avg_iterations_used": 0.0,
                 "avg_model_latency_s": 0.0,
                 "avg_compile_latency_s": 0.0,
@@ -247,6 +369,10 @@ def write_summary_csv(summary_csv: Path, rows: List[dict]) -> None:
         metrics["runs"] = len(relevant)
         metrics["compiled_runs"] = sum(1 for r in relevant if r["run_compiled"] == "1")
         metrics["model_timeout_runs"] = sum(1 for r in relevant if r["stop_reason"] == "model_timeout")
+        metrics["model_quota_exhausted_runs"] = sum(
+            1 for r in relevant if r["stop_reason"] == "model_quota_exhausted"
+        )
+        metrics["model_rate_limited_runs"] = sum(1 for r in relevant if r["stop_reason"] == "model_rate_limited")
         metrics["avg_iterations_used"] = sum(float(r["iterations_used"]) for r in relevant) / len(relevant)
         metrics["avg_model_latency_s"] = sum(float(r["model_latency_s"]) for r in relevant) / len(relevant)
         metrics["avg_compile_latency_s"] = sum(float(r["compile_latency_s"]) for r in relevant) / len(relevant)
@@ -259,6 +385,8 @@ def write_summary_csv(summary_csv: Path, rows: List[dict]) -> None:
         "runs",
         "compiled_runs",
         "model_timeout_runs",
+        "model_quota_exhausted_runs",
+        "model_rate_limited_runs",
         "avg_iterations_used",
         "avg_model_latency_s",
         "avg_compile_latency_s",
@@ -268,6 +396,48 @@ def write_summary_csv(summary_csv: Path, rows: List[dict]) -> None:
         writer.writeheader()
         for item in grouped.values():
             writer.writerow(item)
+
+
+def format_human_timestamp(dt: datetime) -> str:
+    return dt.strftime("%A %B %d %Y at %I:%M%p")
+
+
+def update_run_history(results_root: Path, run_root: Path, details_csv: Path, summary_csv: Path, completed_at: datetime) -> None:
+    history_path = results_root / "results.json"
+    ensure_dir(results_root)
+
+    history: dict
+    if history_path.exists():
+        try:
+            with history_path.open("r", encoding="utf-8") as file:
+                loaded = json.load(file)
+            history = loaded if isinstance(loaded, dict) else {}
+        except (json.JSONDecodeError, OSError):
+            history = {}
+    else:
+        history = {}
+
+    existing_runs = history.get("runs", [])
+    if not isinstance(existing_runs, list):
+        existing_runs = []
+
+    new_entry = {
+        "run_number": int(history.get("total_runs", 0)) + 1,
+        "timestamp": completed_at.isoformat(timespec="seconds"),
+        "timestamp_human": format_human_timestamp(completed_at),
+        "run_root": str(run_root),
+        "results_detailed_csv": str(details_csv),
+        "results_summary_csv": str(summary_csv),
+    }
+    existing_runs.insert(0, new_entry)
+
+    history_doc = {
+        "total_runs": len(existing_runs),
+        "last_updated": completed_at.isoformat(timespec="seconds"),
+        "last_updated_human": format_human_timestamp(completed_at),
+        "runs": existing_runs,
+    }
+    history_path.write_text(json.dumps(history_doc, indent=2), encoding="utf-8")
 
 
 def main() -> None:
@@ -332,7 +502,14 @@ def main() -> None:
                         total_model_latency += model_latency
 
                         if request_status != "ok":
-                            stop_reason = "model_timeout" if request_status == "timeout" else "model_error"
+                            if request_status == "timeout":
+                                stop_reason = "model_timeout"
+                            elif request_status == "quota_exhausted":
+                                stop_reason = "model_quota_exhausted"
+                            elif request_status == "rate_limited":
+                                stop_reason = "model_rate_limited"
+                            else:
+                                stop_reason = "model_error"
                             row = {
                                 "timestamp": datetime.now().isoformat(timespec="seconds"),
                                 "run_id": run_id,
@@ -479,14 +656,8 @@ def main() -> None:
     append_rows_to_csv(details_csv, rows, fieldnames)
     write_summary_csv(summary_csv, rows)
 
-    latest_results_path = Path("results.json")
-    latest_results = {
-        "run_root": str(run_root),
-        "results_detailed_csv": str(details_csv),
-        "results_summary_csv": str(summary_csv),
-        "timestamp": datetime.now().isoformat(timespec="seconds"),
-    }
-    latest_results_path.write_text(json.dumps(latest_results, indent=2), encoding="utf-8")
+    completed_at = datetime.now()
+    update_run_history(run_root.parent, run_root, details_csv, summary_csv, completed_at)
 
     print(f"Detailed CSV: {details_csv}")
     print(f"Summary CSV: {summary_csv}")

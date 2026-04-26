@@ -5,5 +5,3 @@ __pycache__/
 .venv/*
 runs/
 runs/*
-results.json
-/results.json
