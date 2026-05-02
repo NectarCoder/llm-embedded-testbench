@@ -1,0 +1,29 @@
+{
+  "tasks": [
+    {
+      "name": "task1_warmup_led_serial",
+      "simple_prompt": "Write Arduino Mega 2560 code that prints Hello, World! to Serial at 9600 and blinks the built-in LED at 1 Hz.",
+      "structured_prompt": "Design deployable Arduino Mega 2560 firmware for a warm-up task. Requirements: 1) Use Serial.begin(9600). 2) Print exactly Hello, World! once per second. 3) Blink the built-in LED (LED_BUILTIN) with a 1 Hz period. 4) Use a standard setup() and loop() structure. 5) Do not require external libraries. Return only a complete .ino program in one fenced cpp code block."
+    },
+    {
+      "name": "task2_environment_dht11_hcsr04",
+      "simple_prompt": "Write Arduino Mega 2560 code that reads DHT11 temperature/humidity and HC-SR04 distance, then prints all sensor values to Serial at 9600 repeatedly.",
+      "structured_prompt": "Create complete Arduino Mega 2560 firmware for environmental sensing with DHT11 and HC-SR04. Constraints: 1) Serial at 9600. 2) Read DHT11 temperature and humidity. 3) Read HC-SR04 distance via trigger and echo pins. 4) Print one line per cycle with labeled values for temperature, humidity, and distance. 5) Include pin definitions at top and comments where timing matters. 6) Keep loop period around 1 second. Return only compile-ready .ino code in a single fenced cpp block."
+    },
+    {
+      "name": "task3_adxl345_i2c",
+      "simple_prompt": "Write Arduino Mega 2560 code to read ADXL345 acceleration over I2C and print X Y Z values to Serial at 9600 continuously.",
+      "structured_prompt": "Produce deployable Arduino Mega 2560 firmware for ADXL345 over I2C. Requirements: 1) Use Wire-based I2C communication. 2) Initialize ADXL345 for measurement mode. 3) Read X, Y, Z acceleration registers each cycle. 4) Print three labeled values A_X, A_Y, A_Z to Serial at 9600. 5) Target about 10 Hz output. 6) Include clear register constants and initialization logic. Return only a complete .ino program in one fenced cpp block."
+    },
+    {
+      "name": "task4_passive_buzzer_440hz",
+      "simple_prompt": "Write Arduino Mega 2560 code that drives a passive buzzer at 440 Hz continuously.",
+      "structured_prompt": "Create complete Arduino Mega 2560 firmware to generate a 440 Hz tone on a passive buzzer. Constraints: 1) Define a buzzer output pin constant. 2) Generate approximately 440 Hz continuously. 3) Include Serial begin at 9600 and print a startup line. 4) Use standard setup/loop structure. 5) Do not rely on unsupported libraries. Return only one fenced cpp code block containing a full .ino sketch."
+    },
+    {
+      "name": "task5_ds3231_sleep_wakeup",
+      "simple_prompt": "Write Arduino Mega 2560 code that uses a DS3231 alarm interrupt to wake from sleep, blink an LED, and return to sleep.",
+      "structured_prompt": "Generate compile-ready Arduino Mega 2560 firmware for DS3231-driven wake-sleep behavior. Requirements: 1) Use I2C communication for DS3231. 2) Configure an alarm output pin from DS3231 to trigger an external interrupt on the Mega. 3) Enter low-power sleep mode. 4) On alarm wake, blink a red LED briefly, clear alarm flags, and return to sleep. 5) Include all needed headers and explicit pin constants. 6) Serial at 9600 for debug prints. Return only one complete fenced cpp code block."
+    }
+  ]
+}

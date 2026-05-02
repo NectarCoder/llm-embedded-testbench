@@ -1,0 +1,28 @@
+{
+  "providers": [
+    {
+      "name": "OpenAI",
+      "model": "gpt-5.4",
+      "temperature": 0.2
+    },
+    {
+      "name": "Google",
+      "model": "gemini-2.5-flash",
+      "temperature": 0.2
+    }
+  ],
+  "prompt_styles": [
+    "simple",
+    "structured"
+  ],
+  "repetitions": 1,
+  "max_debug_retries": 5,
+  "request_timeout_seconds": 300,
+  "request_reset_retry_count": 1,
+  "compile_timeout_seconds": 120,
+  "output_root": "runs",
+  "arduino": {
+    "fqbn": "arduino:avr:mega",
+    "port": "COM3"
+  }
+}
