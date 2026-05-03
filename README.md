@@ -32,10 +32,10 @@ All experiment logic lives in your existing `testbench.py` — the extension jus
 
 ## Project Structure
 
-This repo contains two things side by side:
+This repository contains two top-level projects:
 
 ```
-arduino-assistant/        ← VS Code extension (this repo)
+arduino-assistant/        — VS Code / Arduino IDE extension source
 ├── src/
 │   └── extension.ts
 ├── media/
@@ -45,15 +45,15 @@ arduino-assistant/        ← VS Code extension (this repo)
 ├── package.json
 └── tsconfig.json
 
-your-testbench-project/   ← Your existing Python testbench (separate folder)
+your-testbench-project/   — Python testbench project (generate → compile runner)
 ├── testbench.py
 ├── run_config.json
 ├── llm_prompts.json
 ├── requirements.txt
-└── .venv/
+└── runs/
 ```
 
-The extension reads `run_config.json` and `llm_prompts.json` from whatever folder is open as your workspace, then spawns `testbench.py` using the `.venv` Python in that same folder.
+The extension reads `run_config.json` and `llm_prompts.json` from the testbench project folder and spawns `testbench.py` using the project's `.venv` Python interpreter when running experiments.
 
 ---
 
