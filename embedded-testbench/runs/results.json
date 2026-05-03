@@ -1,0 +1,15 @@
+{
+  "total_runs": 1,
+  "last_updated": "2026-04-26T14:07:48",
+  "last_updated_human": "Sunday April 26 2026 at 02:07PM",
+  "runs": [
+    {
+      "run_number": 1,
+      "timestamp": "2026-04-26T14:07:48",
+      "timestamp_human": "Sunday April 26 2026 at 02:07PM",
+      "run_root": "runs/2026-04-26-14-07-43",
+      "results_detailed_csv": "runs/2026-04-26-14-07-43/results_detailed.csv",
+      "results_summary_csv": "runs/2026-04-26-14-07-43/results_summary.csv"
+    }
+  ]
+}
