@@ -1,6 +1,6 @@
 # LLM Embedded Testbench
 
-A VS Code / Arduino IDE 2 extension that wraps the [LLM Embedded Workbench](https://github.com/NectarCoder/llm-embedded-workbench) in a sidebar UI — letting you run generate → compile → self-debug experiments against cloud and local LLMs without touching the terminal.
+A VS Code / Arduino IDE 2 extension that wraps the Python-based LLM testbench in a sidebar UI — letting you run generate → compile → self-debug experiments against cloud and local LLMs without touching the terminal.
 
 ---
 
@@ -16,7 +16,7 @@ The extension provides a sidebar panel that lets you:
 - Copy the last generated `.ino` sketch to your clipboard
 - Open the results folder directly from the UI
 
-All experiment logic lives in your existing `testbench.py` — the extension just drives it and displays the output.
+All experiment logic lives in the existing `testbench.py`- the extension just drives it and displays the output.
 
 ---
 
@@ -303,16 +303,6 @@ The subprocess inherits the extension host's PATH. If `arduino-cli` is installed
 
 **API key errors**
 Environment variables must be set before VS Code launches — setting them in a terminal after VS Code is open won't work. Add them to your shell profile or use a `.env` loader.
-
----
-
-## Roadmap
-
-- [ ] Folder picker so the testbench path can be set explicitly (needed for Arduino IDE 2 where the workspace is the sketch folder)
-- [ ] Live metrics pulled from CSV as runs complete
-- [ ] Results history viewer showing past runs from `results.json`
-- [ ] Hardware upload phase when `deploy_stub` is replaced
-- [ ] VS Code setting for testbench project path
 
 ---
 
