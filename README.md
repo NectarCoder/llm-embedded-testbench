@@ -1,4 +1,4 @@
-# Arduino Assistant
+# LLM Embedded Testbench
 
 A VS Code / Arduino IDE 2 extension that wraps the [LLM Embedded Workbench](https://github.com/NectarCoder/llm-embedded-workbench) in a sidebar UI — letting you run generate → compile → self-debug experiments against cloud and local LLMs without touching the terminal.
 
