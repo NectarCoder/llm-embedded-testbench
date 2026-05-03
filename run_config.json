@@ -1,69 +1,16 @@
 {
-  "provider_profiles": {
-    "default": [
-      {
-        "name": "Ollama",
-        "model": "gemma2:9b",
-        "temperature": 0.2
-      }
-    ],
-    "local": [
-      {
-        "name": "Ollama",
-        "model": "llama3.1:8b",
-        "temperature": 0.2
-      },
-      {
-        "name": "Ollama",
-        "model": "gemma2:9b",
-        "temperature": 0.2
-      },
-      {
-        "name": "Ollama",
-        "model": "deepseek-r1:8b",
-        "temperature": 0.2
-      }
-    ],
-    "cloud": [
-      {
-        "name": "OpenAI",
-        "model": "gpt-5.4",
-        "temperature": 0.2
-      },
-      {
-        "name": "Google",
-        "model": "gemini-2.5-flash",
-        "temperature": 0.2
-      }
-    ],
-    "all": [
-      {
-        "name": "Ollama",
-        "model": "llama3.1:8b",
-        "temperature": 0.2
-      },
-      {
-        "name": "Ollama",
-        "model": "gemma2:9b",
-        "temperature": 0.2
-      },
-      {
-        "name": "Ollama",
-        "model": "deepseek-r1:8b",
-        "temperature": 0.2
-      },
-      {
-        "name": "OpenAI",
-        "model": "gpt-5.4",
-        "temperature": 0.2
-      },
-      {
-        "name": "Google",
-        "model": "gemini-2.5-flash",
-        "temperature": 0.2
-      }
-    ]
-  },
+  "providers": [
+    {
+      "name": "OpenAI",
+      "model": "gpt-5.4",
+      "temperature": 0.2
+    },
+    {
+      "name": "Google",
+      "model": "gemini-2.5-flash",
+      "temperature": 0.2
+    }
+  ],
   "prompt_styles": [
     "simple",
     "structured"
@@ -73,7 +20,7 @@
   "request_timeout_seconds": 300,
   "request_reset_retry_count": 1,
   "compile_timeout_seconds": 120,
-  "output_root": "results",
+  "output_root": "runs",
   "arduino": {
     "fqbn": "arduino:avr:mega",
     "port": "COM3"

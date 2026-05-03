@@ -1,5 +1,4 @@
 import argparse
-import concurrent.futures
 import csv
 import json
 import os
@@ -247,51 +246,6 @@ def call_google(api_key: str, model: str, temperature: float, prompt: str, timeo
     return content, elapsed
 
 
-def call_ollama(model: str, temperature: float, prompt: str, timeout_seconds: int) -> Tuple[str, float]:
-    base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").strip().rstrip("/")
-    num_predict = int(os.getenv("OLLAMA_NUM_PREDICT", "1024"))
-    url = f"{base_url}/api/chat"
-    payload = {
-        "model": model,
-        "stream": False,
-        "messages": [
-            {"role": "system", "content": "You generate compile-ready Arduino programs."},
-            {"role": "user", "content": prompt},
-        ],
-        "options": {
-            "temperature": temperature,
-            "num_predict": num_predict,
-        },
-    }
-
-    started = time.time()
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    future = executor.submit(requests.post, url, json=payload, timeout=(10, timeout_seconds))
-    try:
-        response = future.result(timeout=timeout_seconds)
-    except concurrent.futures.TimeoutError as exc:
-        future.cancel()
-        executor.shutdown(wait=False, cancel_futures=True)
-        raise requests.Timeout(f"Ollama request exceeded {timeout_seconds} seconds") from exc
-    finally:
-        if future.done():
-            executor.shutdown(wait=False, cancel_futures=True)
-
-    elapsed = time.time() - started
-    if response.status_code >= 400:
-        detail = sanitize_error_message((response.text or f"HTTP {response.status_code}").strip())
-        retryable = response.status_code in {408, 409, 429, 500, 502, 503, 504}
-        category = "rate_limited" if response.status_code == 429 else "error"
-        raise ApiRequestError(category, f"Ollama HTTP {response.status_code}: {detail}", retryable)
-
-    data = response.json()
-    message = data.get("message", {}) if isinstance(data, dict) else {}
-    content = message.get("content", "") if isinstance(message, dict) else ""
-    if not isinstance(content, str) or not content.strip():
-        raise RuntimeError(f"Ollama API returned empty content: {data}")
-    return content, elapsed
-
-
 def call_model_with_timeout_retry(
     provider: ProviderConfig,
     prompt: str,
@@ -299,44 +253,25 @@ def call_model_with_timeout_retry(
     reset_retry_count: int,
 ) -> Tuple[str, float, str, str]:
     provider_lower = provider.name.lower()
-    call_fn = None
+    api_key = ""
 
     if provider_lower == "openai":
         api_key = os.getenv("OPENAI_API_KEY", "").strip()
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY environment variable is missing.")
-        call_fn = lambda user_prompt: call_openai(
-            api_key,
-            provider.model,
-            provider.temperature,
-            user_prompt,
-            request_timeout_seconds,
-        )
+        call_fn = call_openai
     elif provider_lower == "google":
         api_key = os.getenv("GOOGLE_API_KEY", "").strip()
         if not api_key:
             raise RuntimeError("GOOGLE_API_KEY environment variable is missing.")
-        call_fn = lambda user_prompt: call_google(
-            api_key,
-            provider.model,
-            provider.temperature,
-            user_prompt,
-            request_timeout_seconds,
-        )
-    elif provider_lower == "ollama":
-        call_fn = lambda user_prompt: call_ollama(
-            provider.model,
-            provider.temperature,
-            user_prompt,
-            request_timeout_seconds,
-        )
+        call_fn = call_google
     else:
         raise ValueError(f"Unsupported provider: {provider.name}")
 
     last_error = ""
     for attempt in range(reset_retry_count + 1):
         try:
-            text, latency = call_fn(prompt)
+            text, latency = call_fn(api_key, provider.model, provider.temperature, prompt, request_timeout_seconds)
             return text, latency, "ok", ""
         except requests.Timeout as exc:
             last_error = f"timeout: {exc}"
@@ -505,39 +440,16 @@ def update_run_history(results_root: Path, run_root: Path, details_csv: Path, su
     history_path.write_text(json.dumps(history_doc, indent=2), encoding="utf-8")
 
 
-def select_providers_by_mode(config: dict, mode: str) -> List[ProviderConfig]:
-    profiles = config.get("provider_profiles", {})
-    if not isinstance(profiles, dict):
-        raise ValueError("run_config.json must define provider_profiles as an object.")
-
-    selected = profiles.get(mode)
-    if not isinstance(selected, list) or not selected:
-        raise ValueError(f"Provider profile '{mode}' is missing or empty in run_config.json.")
-
-    return [ProviderConfig(**provider) for provider in selected]
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compile-first LLM embedded testbench runner")
-    mode_group = parser.add_mutually_exclusive_group()
-    mode_group.add_argument("--all", action="store_true", help="Run all cloud and local providers")
-    mode_group.add_argument("--cloud", action="store_true", help="Run cloud providers only")
-    mode_group.add_argument("--local", action="store_true", help="Run local Ollama providers only")
+    parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="Path to run config JSON")
+    parser.add_argument("--prompts", default=DEFAULT_PROMPTS_PATH, help="Path to prompts JSON")
     args = parser.parse_args()
 
-    config = load_json(Path(DEFAULT_CONFIG_PATH))
-    prompts = load_json(Path(DEFAULT_PROMPTS_PATH))
+    config = load_json(Path(args.config))
+    prompts = load_json(Path(args.prompts))
 
-    if args.all:
-        mode = "all"
-    elif args.cloud:
-        mode = "cloud"
-    elif args.local:
-        mode = "local"
-    else:
-        mode = "default"
-
-    providers = select_providers_by_mode(config, mode)
+    providers = [ProviderConfig(**provider) for provider in config["providers"]]
     prompt_styles: List[str] = config["prompt_styles"]
     repetitions = int(config["repetitions"])
     max_debug_retries = int(config["max_debug_retries"])
@@ -545,7 +457,7 @@ def main() -> None:
     request_reset_retry_count = int(config["request_reset_retry_count"])
     compile_timeout_seconds = int(config["compile_timeout_seconds"])
 
-    run_root = Path(config.get("output_root", "results")) / datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    run_root = Path(config.get("output_root", "runs")) / datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     programs_root = run_root / "programs"
     logs_root = run_root / "compile_logs"
     ensure_dir(programs_root)
@@ -553,7 +465,6 @@ def main() -> None:
 
     rows: List[dict] = []
 
-    print(f"Run mode: {mode}")
     print(f"Run output: {run_root}")
     print("Compile-only mode active: deployment is stubbed and hardware execution is skipped.")
 
