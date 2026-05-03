@@ -45,7 +45,7 @@ arduino-assistant/        — VS Code / Arduino IDE extension source
 ├── package.json
 └── tsconfig.json
 
-your-testbench-project/   — Python testbench project (generate → compile runner)
+embedded-testbench/   — Python testbench project (generate → compile runner)
 ├── testbench.py
 ├── run_config.json
 ├── llm_prompts.json
@@ -126,14 +126,14 @@ The extension reads this file to populate the provider mode descriptions and app
     ],
     "cloud": [
       { "name": "openai", "model": "gpt-4o", "temperature": 0.2 },
-      { "name": "google", "model": "gemini-1.5-pro", "temperature": 0.2 }
+      { "name": "google", "model": "gemini-3.1-flash", "temperature": 0.2 }
     ],
     "local": [
       { "name": "ollama", "model": "deepseek-coder:6.7b", "temperature": 0.2 }
     ],
     "all": [
       { "name": "openai", "model": "gpt-4o", "temperature": 0.2 },
-      { "name": "google", "model": "gemini-1.5-pro", "temperature": 0.2 },
+      { "name": "google", "model": "gemini-3.1-flash", "temperature": 0.2 },
       { "name": "ollama", "model": "deepseek-coder:6.7b", "temperature": 0.2 }
     ]
   },
